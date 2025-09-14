@@ -1,13 +1,12 @@
 blank_issues_enabled: false
 contact_links:
   - name: 📬 Contact Support Privately
-    url: mailto:support@planlyst.app
+    url: mailto:aurelen.soft@gmail.com
     about: If your issue contains sensitive data or is private in nature, feel free to email us.
   - name: 🌐 Visit PlanLyst Website
     url: https://www.planlyst.app
-    about: Learn more about the app, features, and roadmap.
+    about: Learn more about the app, features and roadmap.
 
-# Optional ordering of templates
 issue_templates:
   - name: Bug Report
     description: Report a bug, crash, or incorrect behavior
