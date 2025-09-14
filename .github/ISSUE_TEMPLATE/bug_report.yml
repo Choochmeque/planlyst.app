@@ -11,40 +11,40 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: 🐞 What happened?
-      description: A clear and concise description of the problem.
-      placeholder: For example: App crashes when editing a task with due date
+      label: "🐞 What happened?"
+      description: "A clear and concise description of the problem."
+      placeholder: "For example, the app crashes when editing a task with a due date."
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: ✅ Steps to Reproduce
-      description: Please list the exact steps so we can reproduce the issue.
+      label: "✅ Steps to Reproduce"
+      description: "Please list the exact steps so we can reproduce the issue."
       placeholder: |
-        1. Open the app
-        2. Go to Daily View
-        3. Tap on task
+        1. Open the app  
+        2. Go to Daily View  
+        3. Tap on a task  
         4. App crashes
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: 📦 App Version
-      placeholder: e.g. v1.0.2
+      label: "📦 App Version"
+      placeholder: "e.g. v1.0.2"
   - type: input
     id: platform
     attributes:
-      label: 💻 Platform
-      placeholder: e.g. Android 13 / iOS 17 / macOS Sonoma
+      label: "💻 Platform"
+      placeholder: "e.g. Android 13 / iOS 17 / macOS Sonoma"
   - type: textarea
     id: logs
     attributes:
-      label: 📄 Relevant Logs (optional)
-      description: Paste any crash logs or console output if available.
+      label: "📄 Relevant Logs (optional)"
+      description: "Paste any crash logs or console output if available."
       render: shell
   - type: textarea
     id: notes
     attributes:
-      label: ✍️ Additional Notes (optional)
+      label: "✍️ Additional Notes (optional)"
