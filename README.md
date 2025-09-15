@@ -41,7 +41,7 @@ Start here 👉 [New Issue](https://github.com/Choochmeque/planlyst.app/issues/n
 ## 📬 Contact & Support
 
 For private or sensitive bug reports, please contact:  
-📧 `aurelen.soft@gmail.com`
+📧 `support@planlyst.app`
 
 ---
 
