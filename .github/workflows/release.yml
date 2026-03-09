@@ -140,6 +140,12 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install frontend dependencies
         run: pnpm install
 
@@ -151,8 +157,21 @@ jobs:
           DOT_ENV: ${{ secrets.DOT_ENV }}
           ROOT_DOT_ENV: ${{ secrets.ROOT_DOT_ENV }}
 
-      - name: Build Windows Release
-        run: pnpm tauri build
+      - name: Build Windows MSIX Bundle (x64 + ARM64)
+        run: pnpm tauri:windows:build --arch x64,arm64
+
+      - name: Configure Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.1
+
+      - name: Reconfigure store credentials
+        run: msstore reconfigure `
+              --tenantId ${{ secrets.AZURE_AD_TENANT_ID }} `
+              --sellerId ${{ secrets.SELLER_ID }} `
+              --clientId ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }} `
+              --clientSecret ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+
+      - name: Publish to Microsoft Store
+        run: msstore publish '${{ github.workspace }}/target/msix/' -id ${{ secrets.MS_STORE_PRODUCT_ID }}
 
   build-macos:
     runs-on: macos-14
