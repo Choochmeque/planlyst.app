@@ -82,8 +82,8 @@ jobs:
 
       - name: Install provisioning profile
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          mkdir -p ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" | base64 --decode > ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/profile.mobileprovision
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
