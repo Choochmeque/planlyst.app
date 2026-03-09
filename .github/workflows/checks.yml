@@ -16,31 +16,46 @@ jobs:
           ref: ${{ github.event.client_payload.sha }}
 
       - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
 
-      - uses: actions/setup-node@v4
+      - name: Cache Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Cache and install APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
           version: "1.0"
 
-      - run: pnpm install
+      - name: Install frontend dependencies
+        run: pnpm install
 
       - name: Create .env file
-        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+        run: |
+          echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
-      - run: pnpm gen:bindings
-      - run: pnpm audit || true
-      - run: pnpm run check
+      - name: Generate TypeScript bindings
+        run: pnpm gen:bindings
+
+      - name: Run pnpm audit
+        run: pnpm audit || true  # don't fail on audit issues, just warn
+
+      - name: Run pnpm check
+        run: pnpm run check
 
   check-cargo:
     runs-on: ubuntu-latest
@@ -62,8 +77,10 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           ref: ${{ github.event.client_payload.sha }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
       - uses: taiki-e/install-action@cargo-deny
@@ -72,17 +89,23 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Cache and install APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
           version: "1.0"
 
-      - run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
+      - name: Check formatting
+        run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Create .env file
-        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+        run: |
+          echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
-      - run: cargo clippy --all-targets --manifest-path src-tauri/Cargo.toml -- -D warnings -D clippy::unwrap_used
+      - name: Run Clippy
+        run: cargo clippy --all-targets --manifest-path src-tauri/Cargo.toml -- -D warnings -D clippy::unwrap_used
 
-      - working-directory: src-tauri
-        run: cargo deny check advisories || true
+      - name: Run audit
+        working-directory: src-tauri
+        run: cargo deny check advisories || true  # don't fail if advisories found, just warn
+
