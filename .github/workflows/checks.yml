@@ -109,3 +109,32 @@ jobs:
         working-directory: src-tauri
         run: cargo deny check advisories || true  # don't fail if advisories found, just warn
 
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [check-pnpm, check-cargo]
+    if: always()
+    steps:
+      - name: Report status to private repo
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PRIVATE_REPO_PAT }}
+          script: |
+            const sha = '${{ github.event.client_payload.sha }}';
+            const checksPnpm = '${{ needs.check-pnpm.result }}';
+            const checksCargo = '${{ needs.check-cargo.result }}';
+
+            const allPassed = checksPnpm === 'success' && checksCargo === 'success';
+            const state = allPassed ? 'success' : 'failure';
+            const description = allPassed
+              ? 'All checks passed'
+              : `Failed: pnpm=${checksPnpm}, cargo=${checksCargo}`;
+
+            await github.rest.repos.createCommitStatus({
+              owner: 'Choochmeque',
+              repo: 'PlanLyst',
+              sha: sha,
+              state: state,
+              context: 'Checks (external)',
+              description: description,
+              target_url: `https://github.com/Choochmeque/planlyst.app/actions/runs/${{ github.run_id }}`
+            });

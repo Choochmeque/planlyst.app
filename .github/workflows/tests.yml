@@ -133,3 +133,33 @@ jobs:
           fail_ci_if_error: true
           files: coverage.lcov
           flags: cargo
+
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [test-pnpm, test-cargo]
+    if: always()
+    steps:
+      - name: Report status to private repo
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PRIVATE_REPO_PAT }}
+          script: |
+            const sha = '${{ github.event.client_payload.sha }}';
+            const testPnpm = '${{ needs.test-pnpm.result }}';
+            const testCargo = '${{ needs.test-cargo.result }}';
+
+            const allPassed = testPnpm === 'success' && testCargo === 'success';
+            const state = allPassed ? 'success' : 'failure';
+            const description = allPassed
+              ? 'All tests passed'
+              : `Failed: pnpm=${testPnpm}, cargo=${testCargo}`;
+
+            await github.rest.repos.createCommitStatus({
+              owner: 'Choochmeque',
+              repo: 'PlanLyst',
+              sha: sha,
+              state: state,
+              context: 'Tests (external)',
+              description: description,
+              target_url: `https://github.com/Choochmeque/planlyst.app/actions/runs/${{ github.run_id }}`
+            });
