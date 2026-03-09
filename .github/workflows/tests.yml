@@ -51,9 +51,15 @@ jobs:
         run: pnpm gen:bindings
 
       - name: Run UI tests with coverage
+        if: github.event.client_payload.actor != 'dependabot[bot]'
         run: pnpm test:coverage
 
+      - name: Run UI tests without coverage (dependabot)
+        if: github.event.client_payload.actor == 'dependabot[bot]'
+        run: pnpm test:run
+
       - name: Codecov
+        if: github.event.client_payload.actor != 'dependabot[bot]'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -90,6 +96,7 @@ jobs:
           toolchain: stable
 
       - uses: taiki-e/install-action@cargo-llvm-cov
+        if: github.event.client_payload.actor != 'dependabot[bot]'
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -105,12 +112,19 @@ jobs:
         run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
       - name: Run tests with Turso backend
+        if: github.event.client_payload.actor != 'dependabot[bot]'
         run: cargo test --workspace --all-targets --manifest-path src-tauri/Cargo.toml --features turso --no-default-features || true
 
       - name: Run rust tests with coverage
+        if: github.event.client_payload.actor != 'dependabot[bot]'
         run: cargo llvm-cov --workspace --all-targets --manifest-path src-tauri/Cargo.toml --lcov --output-path coverage.lcov
 
+      - name: Run rust tests without coverage (dependabot)
+        if: github.event.client_payload.actor == 'dependabot[bot]'
+        run: cargo test --workspace --all-targets --manifest-path src-tauri/Cargo.toml
+
       - name: Codecov
+        if: github.event.client_payload.actor != 'dependabot[bot]'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
