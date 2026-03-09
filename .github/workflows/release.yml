@@ -136,6 +136,12 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           ref: ${{ github.event.client_payload.tag }}
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
