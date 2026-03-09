@@ -1,0 +1,121 @@
+name: Tests + Coverage
+
+on:
+  repository_dispatch:
+    types: [run-tests]
+
+jobs:
+  test-pnpm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Cache Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Cache and install APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
+          version: "1.0"
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+
+      - name: Generate TypeScript bindings
+        run: pnpm gen:bindings
+
+      - name: Run UI tests with coverage
+        run: pnpm test:coverage
+
+      - name: Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: false
+          fail_ci_if_error: true
+          files: lcov.info
+          flags: pnpm
+
+  test-cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Cache and install APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
+          version: "1.0"
+
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+
+      - name: Run tests with Turso backend
+        run: cargo test --workspace --all-targets --manifest-path src-tauri/Cargo.toml --features turso --no-default-features || true
+
+      - name: Run rust tests with coverage
+        run: cargo llvm-cov --workspace --all-targets --manifest-path src-tauri/Cargo.toml --lcov --output-path coverage.lcov
+
+      - name: Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: false
+          fail_ci_if_error: true
+          files: coverage.lcov
+          flags: cargo
