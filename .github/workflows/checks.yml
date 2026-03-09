@@ -130,6 +130,9 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Setup Android environment
+        run: ./scripts/setup_android_env.sh ${ANDROID_SDK_ROOT}
+
       - name: Create .env file
         run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
