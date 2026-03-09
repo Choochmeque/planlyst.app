@@ -65,7 +65,7 @@ jobs:
           key-json: '${{ secrets.SERVICE_KEY_JSON }}'
 
   build-ios:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout private repo
         uses: actions/checkout@v4
@@ -174,7 +174,7 @@ jobs:
         run: msstore publish '${{ github.workspace }}/target/msix/' -id ${{ secrets.MS_STORE_PRODUCT_ID }}
 
   build-macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     if: false  # Disabled
 
     steps:
