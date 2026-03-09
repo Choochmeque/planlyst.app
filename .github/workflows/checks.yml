@@ -1,0 +1,88 @@
+name: Checks
+
+on:
+  repository_dispatch:
+    types: [run-checks]
+
+jobs:
+  check-pnpm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
+          version: "1.0"
+
+      - run: pnpm install
+
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+
+      - run: pnpm gen:bindings
+      - run: pnpm audit || true
+      - run: pnpm run check
+
+  check-cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: taiki-e/install-action@cargo-deny
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
+          version: "1.0"
+
+      - run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Create .env file
+        run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+
+      - run: cargo clippy --all-targets --manifest-path src-tauri/Cargo.toml -- -D warnings -D clippy::unwrap_used
+
+      - working-directory: src-tauri
+        run: cargo deny check advisories || true
