@@ -124,6 +124,7 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-linux-android
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -132,8 +133,8 @@ jobs:
       - name: Create .env file
         run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
-      - name: Check Android target
-        run: cargo check --manifest-path src-tauri/Cargo.toml --target aarch64-linux-android
+      - name: Run Clippy for Android
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --target aarch64-linux-android -- -D warnings -D clippy::unwrap_used
 
   check-ios:
     runs-on: macos-latest
@@ -150,6 +151,7 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-apple-ios
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -158,8 +160,8 @@ jobs:
       - name: Create .env file
         run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
-      - name: Check iOS target
-        run: cargo check --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios
+      - name: Run Clippy for iOS
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios -- -D warnings -D clippy::unwrap_used
 
   check-macos:
     runs-on: macos-latest
@@ -176,6 +178,7 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-apple-darwin
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -184,8 +187,8 @@ jobs:
       - name: Create .env file
         run: echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
 
-      - name: Check macOS target
-        run: cargo check --manifest-path src-tauri/Cargo.toml --target aarch64-apple-darwin
+      - name: Run Clippy for macOS
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --target aarch64-apple-darwin -- -D warnings -D clippy::unwrap_used
 
   check-windows:
     runs-on: windows-latest
@@ -201,6 +204,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -210,8 +214,8 @@ jobs:
         shell: pwsh
         run: Set-Content -Path "src-tauri/.env" -Value "${{ secrets.DOT_ENV }}"
 
-      - name: Check Windows target
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Run Clippy for Windows
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings -D clippy::unwrap_used
 
   report-status:
     runs-on: ubuntu-latest
