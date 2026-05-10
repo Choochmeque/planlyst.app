@@ -110,14 +110,15 @@ jobs:
           echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
           echo "${{ secrets.ROOT_DOT_ENV }}" > .env
 
-      - name: Build iOS Release
-        run: pnpm tauri ios build --export-method app-store-connect
-
       - name: Prepare App Store Connect API key
         run: |
-          mkdir -p ./private_keys
-          echo "${{ secrets.APPLE_API_PRIVATE_KEY }}" > ./private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
-          chmod 600 ./private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          mkdir -p ~/.appstoreconnect/private_keys ./private_keys
+          echo "${{ secrets.APPLE_API_PRIVATE_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          cp ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8 ./private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+
+      - name: Build iOS Release
+        run: pnpm tauri ios build --export-method app-store-connect
 
       - name: Validate IPA
         run: xcrun altool --validate-app -t ios -f "src-tauri/gen/apple/build/arm64/PlanLyst.ipa" --apiKey ${{ secrets.APPLE_API_KEY_ID }} --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
