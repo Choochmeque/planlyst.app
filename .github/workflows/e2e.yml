@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}

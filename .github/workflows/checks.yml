@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -49,7 +49,7 @@ jobs:
           swap-storage: true
 
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -121,7 +121,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -148,7 +148,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
@@ -175,7 +175,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Choochmeque/PlanLyst
           token: ${{ secrets.PRIVATE_REPO_PAT }}
