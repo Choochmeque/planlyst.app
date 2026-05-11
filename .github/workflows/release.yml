@@ -79,16 +79,20 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Remove MetalToolchain (Tauri + Xcode 26 fix)
+      - name: Materialize MetalToolchain (Tauri + Xcode 26 fix)
         run: |
-          # Confirmed by Darkatse in tauri-apps/tauri#15066: MetalToolchain 26.x
-          # dropped libswiftCompatibility 5.x but its dirs still get baked into
-          # xcodebuild's -L search paths, hiding the working copies in
-          # XcodeDefault.xctoolchain. Removing the component clears the bogus
-          # paths and the link succeeds. -deleteComponent only works on
-          # downloaded assets, so download first.
-          sudo xcodebuild -downloadComponent MetalToolchain
-          sudo xcodebuild -deleteComponent MetalToolchain
+          # Xcode 26 ships a stale MetalToolchain cryptex mount whose path
+          # doesn't exist on disk; xcodebuild bakes those broken paths into
+          # the linker -L flags and Swift compat libs end up unreachable.
+          # Downloading the component materializes the mount and the link
+          # succeeds. Apple's asset catalog is flaky for some build IDs, so
+          # retry a few times before giving up; if it persistently fails,
+          # continue — the asset may already be cached from a prior run.
+          for i in 1 2 3; do
+            sudo xcodebuild -downloadComponent MetalToolchain && break
+            echo "Attempt $i failed; sleeping 15s and retrying"
+            sleep 15
+          done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
 
       - name: Import code signing certificate
         uses: apple-actions/import-codesign-certs@v7
@@ -264,10 +268,13 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Remove MetalToolchain (Xcode 26 toolchain shadowing fix)
+      - name: Materialize MetalToolchain (Xcode 26 toolchain shadowing fix)
         run: |
-          sudo xcodebuild -downloadComponent MetalToolchain
-          sudo xcodebuild -deleteComponent MetalToolchain
+          for i in 1 2 3; do
+            sudo xcodebuild -downloadComponent MetalToolchain && break
+            echo "Attempt $i failed; sleeping 15s and retrying"
+            sleep 15
+          done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
