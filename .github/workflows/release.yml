@@ -131,6 +131,13 @@ jobs:
               'DEVELOPMENT_TEAM' => ENV.fetch('TEAM_ID'),
             )
           end
+          # Xcode 26 forbids implicit linking against SwiftUICore. SwiftUI has
+          # to be explicit on the link line — without this the build fails
+          # with "cannot link directly with 'SwiftUICore'".
+          already_linked = target.frameworks_build_phase.files.any? do |f|
+            f.display_name == 'SwiftUI.framework'
+          end
+          target.add_system_framework('SwiftUI') unless already_linked
           proj.save
           puts "Applied manual signing: team=#{ENV['TEAM_ID']} profile=#{ENV['PROFILE_NAME']}"
           RUBY
