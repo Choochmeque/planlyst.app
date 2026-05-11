@@ -79,14 +79,16 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Materialize MetalToolchain (workaround for runner-images#13135)
+      - name: Remove MetalToolchain (Tauri + Xcode 26 fix)
         run: |
-          # Xcode advertises a MetalToolchain cryptex mount, but the underlying
-          # asset isn't pre-installed on the runner. xcodebuild still derives
-          # -L search paths from it, so the linker hunts the Swift compat libs
-          # in a path that doesn't exist. Downloading the component fills in
-          # the asset and lets the link succeed.
+          # Confirmed by Darkatse in tauri-apps/tauri#15066: MetalToolchain 26.x
+          # dropped libswiftCompatibility 5.x but its dirs still get baked into
+          # xcodebuild's -L search paths, hiding the working copies in
+          # XcodeDefault.xctoolchain. Removing the component clears the bogus
+          # paths and the link succeeds. -deleteComponent only works on
+          # downloaded assets, so download first.
           sudo xcodebuild -downloadComponent MetalToolchain
+          sudo xcodebuild -deleteComponent MetalToolchain
 
       - name: Import code signing certificate
         uses: apple-actions/import-codesign-certs@v7
@@ -262,8 +264,10 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Materialize MetalToolchain (workaround for runner-images#13135)
-        run: sudo xcodebuild -downloadComponent MetalToolchain
+      - name: Remove MetalToolchain (Xcode 26 toolchain shadowing fix)
+        run: |
+          sudo xcodebuild -downloadComponent MetalToolchain
+          sudo xcodebuild -deleteComponent MetalToolchain
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
