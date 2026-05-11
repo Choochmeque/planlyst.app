@@ -79,6 +79,9 @@ jobs:
         with:
           xcode-version: "26.2"
 
+      - name: Pin Swift toolchain (workaround for runner-images#13135)
+        run: echo "TOOLCHAINS=com.apple.dt.toolchain.XcodeDefault" >> "$GITHUB_ENV"
+
       - name: Import code signing certificate
         uses: apple-actions/import-codesign-certs@v7
         with:
@@ -252,6 +255,9 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "26.2"
+
+      - name: Pin Swift toolchain (workaround for runner-images#13135)
+        run: echo "TOOLCHAINS=com.apple.dt.toolchain.XcodeDefault" >> "$GITHUB_ENV"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
