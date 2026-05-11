@@ -92,12 +92,28 @@ jobs:
 
       - name: Switch iOS target to manual signing
         run: |
-          # Target-level pbxproj settings override xcconfig, so we have to edit
-          # the pbxproj. We use the `xcodeproj` gem (Apple's accepted parser,
-          # what cocoapods/fastlane depend on) instead of sed to avoid format
-          # fragility.
-          PROFILE_NAME=$(echo '${{ steps.download_profile.outputs.profiles }}' | jq -r '.[0].name')
-          PROFILE_PATH=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -n 1)
+          # The action downloads every App Store profile attached to the team,
+          # including invisible Xcode-managed ones spawned by past automatic-
+          # signing builds. Manual signing rejects those, so skip any whose
+          # Name starts with "iOS Team" (the Apple-managed prefix) and pick the
+          # first manually-managed profile.
+          PROFILE_NAME=""
+          PROFILE_PATH=""
+          for f in "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision; do
+            name=$(security cms -D -i "$f" | plutil -extract Name raw -o - -)
+            case "$name" in
+              "iOS Team "*) continue ;;
+            esac
+            PROFILE_NAME="$name"
+            PROFILE_PATH="$f"
+            break
+          done
+
+          if [ -z "$PROFILE_NAME" ]; then
+            echo "::error::No manually-managed App Store profile found. Only Xcode-managed profiles available."
+            exit 1
+          fi
+
           TEAM_ID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract TeamIdentifier.0 raw -o - -)
 
           gem install --no-document xcodeproj
