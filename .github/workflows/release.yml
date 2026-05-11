@@ -64,6 +64,7 @@ jobs:
           packageName: com.aurelen.planlyst
           releaseFiles: src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
           debugSymbols: src-tauri/gen/android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+          mappingFile: src-tauri/gen/android/app/build/outputs/mapping/universalRelease/mapping.txt
           releaseName: ${{ github.event.client_payload.tag }}
           # Matches the prior italankin action's default. Change to
           # production/alpha/beta if your release flow uses a different lane.
