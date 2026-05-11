@@ -79,8 +79,15 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Pin Swift toolchain (workaround for runner-images#13135)
-        run: echo "TOOLCHAINS=com.apple.dt.toolchain.XcodeDefault" >> "$GITHUB_ENV"
+      - name: Remove broken MetalToolchain (workaround for runner-images#13135)
+        run: |
+          # The runner ships a stale MetalToolchain cryptex mount pointing at a
+          # path that doesn't exist. xcodebuild still derives -L search paths
+          # from it, shadowing XcodeDefault.xctoolchain and hiding the Swift
+          # compat libs. Deleting the component forces fallback to the default
+          # toolchain. The `|| true` is because the component may already be
+          # unavailable on some image versions.
+          sudo xcodebuild -deleteComponent MetalToolchain || true
 
       - name: Import code signing certificate
         uses: apple-actions/import-codesign-certs@v7
@@ -256,8 +263,8 @@ jobs:
         with:
           xcode-version: "26.2"
 
-      - name: Pin Swift toolchain (workaround for runner-images#13135)
-        run: echo "TOOLCHAINS=com.apple.dt.toolchain.XcodeDefault" >> "$GITHUB_ENV"
+      - name: Remove broken MetalToolchain (workaround for runner-images#13135)
+        run: sudo xcodebuild -deleteComponent MetalToolchain || true
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
