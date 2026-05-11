@@ -80,10 +80,35 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
-      - name: Install provisioning profile
+      - name: Download provisioning profile
+        id: download_profile
+        uses: apple-actions/download-provisioning-profiles@v6
+        with:
+          bundle-id: com.aurelen.planlyst
+          profile-type: IOS_APP_STORE
+          issuer-id: ${{ secrets.APPLE_API_ISSUER }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+
+      - name: Write manual-signing xcconfig override
+        id: signing_xcconfig
         run: |
-          mkdir -p ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" | base64 --decode > ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/profile.mobileprovision
+          # Profile name comes from the action's `profiles` output (JSON array of
+          # {name, udid, type}). Team id isn't exposed by the action, so read it
+          # from the installed .mobileprovision — the action drops it under
+          # ~/Library/MobileDevice/Provisioning Profiles/.
+          PROFILE_NAME=$(echo '${{ steps.download_profile.outputs.profiles }}' | jq -r '.[0].name')
+          PROFILE_PATH=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -n 1)
+          TEAM_ID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract TeamIdentifier.0 raw -o - -)
+
+          XCCONFIG_PATH="$RUNNER_TEMP/ios-signing.xcconfig"
+          cat > "$XCCONFIG_PATH" <<EOF
+          CODE_SIGN_STYLE = Manual
+          DEVELOPMENT_TEAM = $TEAM_ID
+          PROVISIONING_PROFILE_SPECIFIER = $PROFILE_NAME
+          CODE_SIGN_IDENTITY = Apple Distribution
+          EOF
+          echo "path=$XCCONFIG_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -119,6 +144,12 @@ jobs:
 
       - name: Build iOS Release
         run: pnpm tauri ios build --export-method app-store-connect
+        env:
+          # Force manual signing in CI via xcconfig override. The runner has no
+          # logged-in Apple ID, so automatic signing can't fetch a profile;
+          # `XCODE_XCCONFIG_FILE` is honored by xcodebuild and inherited through
+          # Tauri to make it use the imported `.mobileprovision` directly.
+          XCODE_XCCONFIG_FILE: ${{ steps.signing_xcconfig.outputs.path }}
 
       - name: Validate IPA
         run: xcrun altool --validate-app -t ios -f "src-tauri/gen/apple/build/arm64/PlanLyst.ipa" --apiKey ${{ secrets.APPLE_API_KEY_ID }} --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
