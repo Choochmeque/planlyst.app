@@ -167,7 +167,7 @@ jobs:
           ROOT_DOT_ENV: ${{ secrets.ROOT_DOT_ENV }}
 
       - name: Build Windows MSIX Bundle (x64 + ARM64)
-        run: pnpm tauri:windows:build --arch x64,arm64
+        run: pnpm tauri:windows:build --arch x64,arm64 --verbose
 
       - name: Configure Microsoft Store CLI
         uses: microsoft/microsoft-store-apppublisher@v1.3
