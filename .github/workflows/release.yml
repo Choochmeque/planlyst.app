@@ -90,25 +90,34 @@ jobs:
           api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
           api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
 
-      - name: Write manual-signing xcconfig override
-        id: signing_xcconfig
+      - name: Switch iOS target to manual signing
         run: |
-          # Profile name comes from the action's `profiles` output (JSON array of
-          # {name, udid, type}). Team id isn't exposed by the action, so read it
-          # from the installed .mobileprovision — the action drops it under
-          # ~/Library/MobileDevice/Provisioning Profiles/.
+          # Target-level pbxproj settings override xcconfig, so we have to edit
+          # the pbxproj. We use the `xcodeproj` gem (Apple's accepted parser,
+          # what cocoapods/fastlane depend on) instead of sed to avoid format
+          # fragility.
           PROFILE_NAME=$(echo '${{ steps.download_profile.outputs.profiles }}' | jq -r '.[0].name')
           PROFILE_PATH=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -n 1)
           TEAM_ID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract TeamIdentifier.0 raw -o - -)
 
-          XCCONFIG_PATH="$RUNNER_TEMP/ios-signing.xcconfig"
-          cat > "$XCCONFIG_PATH" <<EOF
-          CODE_SIGN_STYLE = Manual
-          DEVELOPMENT_TEAM = $TEAM_ID
-          PROVISIONING_PROFILE_SPECIFIER = $PROFILE_NAME
-          CODE_SIGN_IDENTITY = Apple Distribution
-          EOF
-          echo "path=$XCCONFIG_PATH" >> "$GITHUB_OUTPUT"
+          gem install --no-document xcodeproj
+
+          PROFILE_NAME="$PROFILE_NAME" TEAM_ID="$TEAM_ID" ruby <<'RUBY'
+          require 'xcodeproj'
+          proj = Xcodeproj::Project.open('src-tauri/gen/apple/PlanLyst.xcodeproj')
+          target = proj.targets.find { |t| t.name == 'PlanLyst_iOS' }
+          raise 'PlanLyst_iOS target not found' unless target
+          target.build_configurations.each do |c|
+            c.build_settings.merge!(
+              'CODE_SIGN_STYLE' => 'Manual',
+              'CODE_SIGN_IDENTITY' => 'Apple Distribution',
+              'PROVISIONING_PROFILE_SPECIFIER' => ENV.fetch('PROFILE_NAME'),
+              'DEVELOPMENT_TEAM' => ENV.fetch('TEAM_ID'),
+            )
+          end
+          proj.save
+          puts "Applied manual signing: team=#{ENV['TEAM_ID']} profile=#{ENV['PROFILE_NAME']}"
+          RUBY
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -144,12 +153,6 @@ jobs:
 
       - name: Build iOS Release
         run: pnpm tauri ios build --export-method app-store-connect
-        env:
-          # Force manual signing in CI via xcconfig override. The runner has no
-          # logged-in Apple ID, so automatic signing can't fetch a profile;
-          # `XCODE_XCCONFIG_FILE` is honored by xcodebuild and inherited through
-          # Tauri to make it use the imported `.mobileprovision` directly.
-          XCODE_XCCONFIG_FILE: ${{ steps.signing_xcconfig.outputs.path }}
 
       - name: Validate IPA
         run: xcrun altool --validate-app -t ios -f "src-tauri/gen/apple/build/arm64/PlanLyst.ipa" --apiKey ${{ secrets.APPLE_API_KEY_ID }} --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
