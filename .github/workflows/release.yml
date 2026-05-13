@@ -353,6 +353,15 @@ jobs:
 
       - name: Archive macOS app
         working-directory: src-tauri/gen/apple-macos
+        env:
+          # Emit symbolication info into a separate .dSYM (line tables only,
+          # enough for stack traces) and strip the symbol table from the
+          # shipped binary. Net effect: .dSYM gets uploaded for Sentry/Apple
+          # symbolication, users download a slimmer binary than the no-debug
+          # baseline (the unstripped symbol table was the bigger weight).
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
+          CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: packed
+          CARGO_PROFILE_RELEASE_STRIP: symbols
         run: |
           # Marketing version = major.minor.0 from package.json's full version.
           # e.g. 0.2.46 → 0.2.0. Build number (CFBundleVersion) keeps tracking
