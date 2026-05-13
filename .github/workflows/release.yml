@@ -55,6 +55,12 @@ jobs:
       - name: Build Android Release
         env:
           RUSTFLAGS: "-C link-arg=-Wl,-z,max-page-size=16384"
+          # Emit line-tables DWARF so ExtractDebugSymbolsTask packs real Rust
+          # symbols into native-debug-symbols.zip (uploaded to Play Console
+          # and consumed by Sentry). The same Gradle task also strips the .so
+          # in-place after extracting, so the AAB ships a slim binary —
+          # AGP's stripDebugSymbols is a no-op on this prebuilt.
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
         run: pnpm tauri android build --aab --target aarch64
 
       - name: Upload AAB + native debug symbols
