@@ -77,6 +77,16 @@ jobs:
           # Comma-separate to publish to multiple tracks at once.
           tracks: internal
 
+      - name: Install sentry-cli
+        run: curl -sL https://sentry.io/get-cli/ | sh
+
+      - name: Upload Android debug symbols to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: sentry-cli debug-files upload src-tauri/gen/android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+
   build-ios:
     runs-on: macos-latest
     steps:
@@ -217,6 +227,16 @@ jobs:
 
       - name: Upload IPA
         run: xcrun altool --upload-app -t ios -f "src-tauri/gen/apple/build/arm64/PlanLyst.ipa" --apiKey ${{ secrets.APPLE_API_KEY_ID }} --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
+
+      - name: Install sentry-cli
+        run: curl -sL https://sentry.io/get-cli/ | sh
+
+      - name: Upload iOS dSYMs to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: sentry-cli debug-files upload src-tauri/gen/apple/build/PlanLyst_iOS.xcarchive/dSYMs
 
   build-windows:
     runs-on: windows-latest
@@ -415,3 +435,44 @@ jobs:
             -f src-tauri/gen/apple-macos/build/export/PlanLyst.pkg \
             --apiKey ${{ secrets.APPLE_API_KEY_ID }} \
             --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
+
+      - name: Install sentry-cli
+        run: curl -sL https://sentry.io/get-cli/ | sh
+
+      - name: Upload macOS dSYMs to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: sentry-cli debug-files upload src-tauri/gen/apple-macos/build/PlanLyst.xcarchive/dSYMs
+
+  create-release:
+    needs: [build-android, build-ios, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v6
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.tag }}
+          fetch-depth: 0
+
+      # Strip the `v` from `vX.Y.Z` tags so the release identifier matches
+      # what the app reports to Sentry (CFBundleVersion on iOS, otherwise
+      # CARGO_PKG_VERSION — both unprefixed).
+      - name: Compute release version
+        id: release_version
+        env:
+          TAG: ${{ github.event.client_payload.tag }}
+        run: echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          release: ${{ steps.release_version.outputs.value }}
+          environment: production
