@@ -198,6 +198,12 @@ jobs:
           cp ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8 ./private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
 
       - name: Build iOS Release
+        env:
+          # Emit line-tables DWARF so the resulting dSYM/.symbols carry full
+          # file:line info for Rust frames. Xcode's archive pipeline strips
+          # DWARF from the shipped binary after dsymutil extracts it, so the
+          # user-downloaded .ipa size is unchanged.
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
         run: pnpm tauri ios build --export-method app-store-connect
 
       - name: Validate IPA
