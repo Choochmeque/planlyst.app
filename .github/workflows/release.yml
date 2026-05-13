@@ -287,8 +287,47 @@ jobs:
           done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
           sudo xcodebuild -deleteComponent MetalToolchain
 
+      - name: Import Apple Distribution certificate
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Import Mac Installer Distribution certificate
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          create-keychain: false
+
+      - name: Download macOS provisioning profile
+        uses: apple-actions/download-provisioning-profiles@v6
+        with:
+          bundle-id: com.aurelen.planlyst
+          profile-type: MAC_APP_STORE
+          issuer-id: ${{ secrets.APPLE_API_ISSUER }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install tauri-cli (required by build.swift release path)
+        run: cargo install tauri-cli --locked
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Cache Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -298,5 +337,42 @@ jobs:
           echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
           echo "${{ secrets.ROOT_DOT_ENV }}" > .env
 
-      - name: Build macOS Release
-        run: pnpm tauri build --bundles app --target aarch64-apple-darwin
+      - name: Prepare App Store Connect API key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APPLE_API_PRIVATE_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+
+      - name: Regenerate macOS Xcode project
+        run: pnpm tauri-macos-xcode init
+
+      - name: Archive macOS app
+        working-directory: src-tauri/gen/apple-macos
+        run: |
+          xcodebuild -project PlanLyst.xcodeproj \
+            -scheme PlanLyst_macOS \
+            -configuration release \
+            -archivePath build/PlanLyst.xcarchive \
+            archive
+
+      - name: Export macOS pkg for App Store
+        working-directory: src-tauri/gen/apple-macos
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/PlanLyst.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export
+
+      - name: Validate pkg
+        run: |
+          xcrun altool --validate-app -t macos \
+            -f src-tauri/gen/apple-macos/build/export/PlanLyst.pkg \
+            --apiKey ${{ secrets.APPLE_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
+
+      - name: Upload pkg to App Store Connect
+        run: |
+          xcrun altool --upload-app -t macos \
+            -f src-tauri/gen/apple-macos/build/export/PlanLyst.pkg \
+            --apiKey ${{ secrets.APPLE_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
