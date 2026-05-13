@@ -354,10 +354,17 @@ jobs:
       - name: Archive macOS app
         working-directory: src-tauri/gen/apple-macos
         run: |
+          # Marketing version = major.minor.0 from package.json's full version.
+          # e.g. 0.2.46 → 0.2.0. Build number (CFBundleVersion) keeps tracking
+          # the full package.json version via project.yml.
+          PKG_VERSION=$(node -p "require('../../../package.json').version")
+          MARKETING_VERSION="${PKG_VERSION%.*}.0"
+          echo "Using MARKETING_VERSION=$MARKETING_VERSION (derived from package.json $PKG_VERSION)"
           xcodebuild -project PlanLyst.xcodeproj \
             -scheme PlanLyst_macOS \
             -configuration release \
             -archivePath build/PlanLyst.xcarchive \
+            MARKETING_VERSION="$MARKETING_VERSION" \
             archive
 
       - name: Export macOS pkg for App Store
