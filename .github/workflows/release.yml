@@ -261,10 +261,15 @@ jobs:
       - name: Build Windows MSIX Bundle (x64 + ARM64)
         run: pnpm tauri:windows:build --arch x64,arm64 --verbose
 
+      # Microsoft Store upload is disabled — currently broken. Build still
+      # runs above so we keep validating the Windows toolchain. Re-enable by
+      # removing the `if: false` lines once the publishing path works.
       - name: Configure Microsoft Store CLI
+        if: false
         uses: microsoft/microsoft-store-apppublisher@v1.3
 
       - name: Reconfigure store credentials
+        if: false
         run: msstore reconfigure `
               --tenantId ${{ secrets.AZURE_AD_TENANT_ID }} `
               --sellerId ${{ secrets.SELLER_ID }} `
@@ -272,6 +277,7 @@ jobs:
               --clientSecret ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
 
       - name: Publish to Microsoft Store
+        if: false
         run: msstore publish '${{ github.workspace }}/target/msix/' -id ${{ secrets.MS_STORE_PRODUCT_ID }}
 
   build-macos:
