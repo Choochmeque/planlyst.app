@@ -345,6 +345,9 @@ jobs:
           echo "${{ secrets.APPLE_API_PRIVATE_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
 
+      - name: Install xcodegen
+        run: brew install xcodegen
+
       - name: Regenerate macOS Xcode project
         run: pnpm tauri-macos-xcode init
 
