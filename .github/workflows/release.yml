@@ -288,6 +288,12 @@ jobs:
           ROOT_DOT_ENV: ${{ secrets.ROOT_DOT_ENV }}
 
       - name: Build Windows MSIX Bundle (x64 + ARM64)
+        env:
+          # Emit line-tables DWARF/PDB so .pdb files generated alongside each
+          # binary carry symbolication info. PDBs are sidecar files — never
+          # bundled into the MSIX delivered to users, so this only affects
+          # what Sentry receives, not download size.
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
         run: pnpm tauri:windows:build --arch x64,arm64 --verbose
 
       # Microsoft Store upload is disabled — currently broken. Build still
@@ -308,6 +314,26 @@ jobs:
       - name: Publish to Microsoft Store
         if: false
         run: msstore publish '${{ github.workspace }}/target/msix/' -id ${{ secrets.MS_STORE_PRODUCT_ID }}
+
+      - name: Install sentry-cli
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri 'https://github.com/getsentry/sentry-cli/releases/latest/download/sentry-cli-Windows-x86_64.exe' `
+            -OutFile "$env:USERPROFILE\sentry-cli.exe"
+          # Make sentry-cli resolvable on PATH for the next step.
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE"
+
+      - name: Upload Windows PDBs to Sentry
+        shell: pwsh
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          sentry-cli debug-files upload --type pdb `
+            src-tauri/target/x86_64-pc-windows-msvc/release `
+            src-tauri/target/aarch64-pc-windows-msvc/release
 
   build-macos:
     runs-on: macos-latest
