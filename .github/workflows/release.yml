@@ -486,7 +486,26 @@ jobs:
           TAG: ${{ github.event.client_payload.tag }}
         run: echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Create Sentry release
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend with sourcemaps
+        env:
+          GENERATE_SOURCEMAP: "true"
+        run: pnpm build
+
+      - name: Create Sentry release (native engine)
         uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -495,3 +514,14 @@ jobs:
         with:
           release: ${{ steps.release_version.outputs.value }}
           environment: production
+
+      - name: Create Sentry release (frontend UI)
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_FRONTEND }}
+        with:
+          release: ${{ steps.release_version.outputs.value }}
+          environment: production
+          sourcemaps: ./dist
