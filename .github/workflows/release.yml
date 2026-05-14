@@ -270,12 +270,6 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache cargo bin
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-v1
-
       - name: Install msixbundle-cli
         run: cargo install msixbundle-cli --locked
 
@@ -389,12 +383,6 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Cache cargo bin
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-v1
 
       - name: Install tauri-cli (required by build.swift release path)
         run: cargo install tauri-cli --locked
