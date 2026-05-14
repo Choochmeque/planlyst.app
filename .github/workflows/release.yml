@@ -459,7 +459,11 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-        run: sentry-cli debug-files upload src-tauri/gen/apple-macos/build/PlanLyst.xcarchive/dSYMs
+        # Narrow to the actual app's per-arch dSYMs. Xcode's archive bundles
+        # every Cargo intermediate dSYM (proc-macros, build scripts, etc.)
+        # under dSYMs/, but only the PlanLyst-<hash>.dSYM ones are linked
+        # into the shipped binary and worth uploading to Sentry.
+        run: sentry-cli debug-files upload src-tauri/gen/apple-macos/build/PlanLyst.xcarchive/dSYMs/PlanLyst-*.dSYM
 
   create-release:
     needs: [build-android, build-ios, build-windows, build-macos]
