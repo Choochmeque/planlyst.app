@@ -288,7 +288,8 @@ jobs:
           # bundled into the MSIX delivered to users, so this only affects
           # what Sentry receives, not download size.
           CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
-        run: pnpm tauri:windows:build --arch x64,arm64 --verbose
+        # TEMP: x64 build disabled. Restore by changing `--arch arm64` back to `--arch x64,arm64`.
+        run: pnpm tauri:windows:build --arch arm64 --verbose
 
       - name: Configure Microsoft Store CLI
         uses: microsoft/microsoft-store-apppublisher@v1.3
@@ -325,9 +326,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        # TEMP: x64 PDB path disabled to match the build flag. Restore the line alongside `--arch`.
         run: |
           sentry-cli debug-files upload --type pdb `
-            src-tauri/target/x86_64-pc-windows-msvc/release `
             src-tauri/target/aarch64-pc-windows-msvc/release
 
   build-macos:
