@@ -120,8 +120,9 @@ jobs:
           echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
           echo "${{ secrets.ROOT_DOT_ENV }}" > .env
 
-      # Debug APK uses Android's auto-generated debug keystore — no
-      # release keystore.properties needed.
+      - name: Create keystore.properties
+        run: echo "${{ secrets.KEYSTORE_PROPERTIES }}" > src-tauri/gen/android/keystore.properties
+
       - name: Build Android
         run: pnpm tauri android build --debug --apk --target aarch64
 
