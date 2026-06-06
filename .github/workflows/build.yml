@@ -1,0 +1,221 @@
+name: Build
+
+on:
+  repository_dispatch:
+    types: [build]
+
+# Compile-only verification across every target platform. Catches platform-
+# specific build/link regressions earlier than the release pipeline without
+# touching signing certs, store uploads, or Sentry. All jobs use --debug
+# (skip release codegen) and --no-bundle / simulator / debug-APK paths
+# (skip the bits that need credentials).
+jobs:
+  build-desktop:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v6
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - name: Cache and install APT packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
+          version: "1.0"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file (unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+          echo "${{ secrets.ROOT_DOT_ENV }}" > .env
+
+      - name: Create .env file (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Set-Content -Path "src-tauri/.env" -Value $env:DOT_ENV
+          Set-Content -Path ".env" -Value $env:ROOT_DOT_ENV
+        env:
+          DOT_ENV: ${{ secrets.DOT_ENV }}
+          ROOT_DOT_ENV: ${{ secrets.ROOT_DOT_ENV }}
+
+      # --no-bundle skips .deb/.dmg/.msi/MSIX creation (which on Windows
+      # also dodges the msixbundle-cli + signing requirement). --debug
+      # skips release-mode codegen to keep CI fast.
+      - name: Build desktop
+        run: pnpm tauri build --debug --no-bundle
+
+  build-android:
+    name: build (android)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v6
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Android environment
+        run: ./scripts/setup_android_env.sh ${ANDROID_SDK_ROOT}
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+          echo "${{ secrets.ROOT_DOT_ENV }}" > .env
+
+      # Debug APK uses Android's auto-generated debug keystore — no
+      # release keystore.properties needed.
+      - name: Build Android
+        run: pnpm tauri android build --debug --apk --target aarch64
+
+  build-ios:
+    name: build (ios)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v6
+        with:
+          repository: Choochmeque/PlanLyst
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          ref: ${{ github.event.client_payload.sha }}
+
+      - name: Select Xcode 26.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.2"
+
+      - name: Remove MetalToolchain (Tauri + Xcode 26 fix)
+        run: |
+          for i in 1 2 3; do
+            sudo xcodebuild -downloadComponent MetalToolchain && break
+            echo "Attempt $i failed; sleeping 15s and retrying"
+            sleep 15
+          done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
+          sudo xcodebuild -deleteComponent MetalToolchain
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios-sim
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.DOT_ENV }}" > src-tauri/.env
+          echo "${{ secrets.ROOT_DOT_ENV }}" > .env
+
+      # Simulator target skips Apple code signing entirely.
+      - name: Build iOS
+        run: pnpm tauri ios build --debug --target aarch64-sim
+
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [build-desktop, build-android, build-ios]
+    if: always()
+    steps:
+      - name: Report status to private repo
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.PRIVATE_REPO_PAT }}
+          script: |
+            const sha = '${{ github.event.client_payload.sha }}';
+            const results = {
+              desktop: '${{ needs.build-desktop.result }}',
+              android: '${{ needs.build-android.result }}',
+              ios: '${{ needs.build-ios.result }}'
+            };
+
+            const failed = Object.entries(results)
+              .filter(([_, v]) => v !== 'success')
+              .map(([k, v]) => `${k}=${v}`);
+
+            const allPassed = failed.length === 0;
+            const state = allPassed ? 'success' : 'failure';
+            const description = allPassed
+              ? 'All builds passed'
+              : `Failed: ${failed.join(', ')}`;
+
+            await github.rest.repos.createCommitStatus({
+              owner: 'Choochmeque',
+              repo: 'PlanLyst',
+              sha: sha,
+              state: state,
+              context: 'Build (external)',
+              description: description.substring(0, 140),
+              target_url: `https://github.com/Choochmeque/planlyst.app/actions/runs/${{ github.run_id }}`
+            });
