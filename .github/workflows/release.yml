@@ -418,7 +418,7 @@ jobs:
         run: brew install xcodegen
 
       - name: Regenerate macOS Xcode project
-        run: pnpm tauri-macos-xcode init
+        run: pnpm tauri-macos-xcode init --skip-icons
 
       - name: Archive macOS app
         working-directory: src-tauri/gen/apple-macos
