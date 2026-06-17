@@ -385,9 +385,6 @@ jobs:
           toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Install tauri-cli (required by build.swift release path)
-        run: cargo install tauri-cli --locked
-
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -442,6 +439,10 @@ jobs:
           # sit at the top of Xcode's precedence chain, so they win even
           # though init steamrolls the committed project.yml's arm64-only
           # narrowing on every run.
+          # TAURI_RUNNER=pnpm routes build.swift through `pnpm tauri build`,
+          # which uses @tauri-apps/cli from node_modules instead of requiring
+          # a globally-installed cargo-tauri-cli. Only meaningful on the
+          # `archive` action — `-exportArchive` doesn't run script phases.
           xcodebuild -project PlanLyst.xcodeproj \
             -scheme PlanLyst_macOS \
             -configuration release \
@@ -449,6 +450,7 @@ jobs:
             MARKETING_VERSION="$MARKETING_VERSION" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
+            TAURI_RUNNER=pnpm \
             archive
 
       - name: Export macOS pkg for App Store
