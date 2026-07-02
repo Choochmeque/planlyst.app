@@ -32,6 +32,22 @@ jobs:
           packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake
           version: "1.0"
 
+      - name: Select Xcode 26.2
+        if: matrix.os == 'macos-latest'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.2"
+
+      - name: Remove MetalToolchain (Tauri + Xcode 26 fix)
+        if: matrix.os == 'macos-latest'
+        run: |
+          for i in 1 2 3; do
+            sudo xcodebuild -downloadComponent MetalToolchain && break
+            echo "Attempt $i failed; sleeping 15s and retrying"
+            sleep 15
+          done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
+          sudo xcodebuild -deleteComponent MetalToolchain
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
