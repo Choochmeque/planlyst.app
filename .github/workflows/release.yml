@@ -131,7 +131,7 @@ jobs:
 
       - name: Download provisioning profile
         id: download_profile
-        uses: apple-actions/download-provisioning-profiles@v6
+        uses: apple-actions/download-provisioning-profiles@v7
         with:
           bundle-id: com.aurelen.planlyst
           profile-type: IOS_APP_STORE
@@ -368,7 +368,7 @@ jobs:
           create-keychain: false
 
       - name: Download macOS provisioning profile
-        uses: apple-actions/download-provisioning-profiles@v6
+        uses: apple-actions/download-provisioning-profiles@v7
         with:
           bundle-id: com.aurelen.planlyst
           profile-type: MAC_APP_STORE
